@@ -1,0 +1,16 @@
+application: dev
+version: 1
+runtime: python
+api_version: 1
+
+handlers:
+- url: /edit_alerts
+  script: main.py
+  login: required
+
+- url: /check
+  script: main.py
+  login: admin
+
+- url: .*
+  script: main.py
