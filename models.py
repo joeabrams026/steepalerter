@@ -5,7 +5,7 @@ from google.appengine.api import mail
 import urllib
 
 class Alert(db.Model):
-    keywords = db.StringListProperty ()
+    keywords = db.StringProperty()
     user =  db.UserProperty ()
 
     @staticmethod
@@ -20,6 +20,7 @@ class Deal(db.Model):
     title = db.StringProperty()
     description = db.TextProperty()
     published = db.DateTimeProperty()
+    alltext = db.TextProperty()
 
     @staticmethod
     def parse():
@@ -28,12 +29,12 @@ class Deal(db.Model):
         dom = minidom.parse(urllib.urlopen(URL))
         deal = Deal()
         node = dom.getElementsByTagName("item")[0]
-        deal.title = node.getElementsByTagName("title")[0].firstChild.data + " toots"
+        deal.title = node.getElementsByTagName("title")[0].firstChild.data
         deal.description = node.getElementsByTagName("description")[0].firstChild.data
         deal.link = node.getElementsByTagName("link")[0].firstChild.data
 
         published = node.getElementsByTagName("pubDate")[0].firstChild.data
-        deal.published = datetime.strptime(published, "%a, %d %b %Y %H:%M:%S MDT")
+        deal.published = datetime.now() #datetime.strptime(published, "%a, %d %b %Y %H:%M:%S MDT")
         deal.priceCurrent = node.getElementsByTagName("sac:priceCurrent")[0].firstChild.data
         deal.priceRegular = node.getElementsByTagName("sac:priceRegular")[0].firstChild.data
         deal.price = node.getElementsByTagName("sac:price")[0].firstChild.data
@@ -42,6 +43,10 @@ class Deal(db.Model):
         deal.thumbnail = node.getElementsByTagName("sac:thumbnail")[0].firstChild.data
         deal.detailimage = node.getElementsByTagName("sac:detailimage")[0].firstChild.data
         deal.availability = node.getElementsByTagName("sac:availability")[0].firstChild.data
+
+        # lowercase and clump all the text together so it's easier to do an exhaustive search
+        deal.alltext = deal.title.lower() + ' ' + deal.description.lower()
+
         return deal
 
 
@@ -57,7 +62,7 @@ class History(db.Model):
     from google.appengine.api import mail
 
     def send_email (self):
-        mail.send_mail(sender="Steep Alerts <todo@gmail.com>",
+        mail.send_mail(sender="Steep Alerts <jbabrams@gmail.com>",
                       to=self.alert.user.email(),
                       subject="Steep Alert: " + self.deal.title,
                       body=self.deal.description)

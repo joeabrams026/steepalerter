@@ -13,15 +13,17 @@ class EditAlerts(webapp.RequestHandler):
     def get(self):
         alert = Alert.by_user(users.get_current_user())
 
-        if alert is None:
+        if alert is not None:
+            histories = History.by_alert(alert)
+        else:
             alert = Alert()
+            histories = None
 
-        histories = History.by_alert(alert)
         if histories is None:
             histories = []
 
         template_values = {
-            'keywords': string.join(alert.keywords),
+            'keywords': alert.keywords,
             'histories' : histories
         }
 
@@ -36,9 +38,13 @@ class EditAlerts(webapp.RequestHandler):
             alert.user = user
 
         keywords = self.request.get('keywords')
-        alert.keywords = keywords.strip().split()
+        alert.keywords = keywords
+
+        rgKeywords = map(lambda x:x.lower(), keywords.split())
+        query = string.join(rgKeywords, sep=' OR ')
         alert.put()
-        subscribe(Deal, keywords, str(alert.key()))
+
+        subscribe(Deal, query, str(alert.key()))
         self.redirect('/edit_alerts')
 
 class MatchResponseHandler(webapp.RequestHandler):
@@ -67,14 +73,15 @@ class MatchResponseHandler(webapp.RequestHandler):
             hist.deal = deal
             hist.alert = db.get(sub_id)
             hist.put()
-            hist.send_email()
-
+            if not hist.emailed:
+                hist.send_email()
 
 class Check(webapp.RequestHandler):
     """ Fetches Rss feed and submits a new Match query"""
     def get(self):
         deal = Deal.parse()
         last_deal = Deal.all().order("-published").get()
+        #last_deal = None ### for testing
 
         # Only add this deal and call match if it's new!
         if last_deal == None or last_deal.title == deal.title:
