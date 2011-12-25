@@ -10,6 +10,7 @@ import os
 
 class EditAlerts(webapp.RequestHandler):
     """Edit or create alerts"""
+
     def get(self):
         alert = Alert.by_user(users.get_current_user())
 
@@ -24,7 +25,7 @@ class EditAlerts(webapp.RequestHandler):
 
         template_values = {
             'keywords': alert.keywords,
-            'histories' : histories
+            'histories': histories
         }
 
         path = os.path.join(os.path.dirname(__file__), 'templates/edit_alerts.html')
@@ -40,16 +41,18 @@ class EditAlerts(webapp.RequestHandler):
         keywords = self.request.get('keywords')
         alert.keywords = keywords
 
-        rgKeywords = map(lambda x:x.lower(), keywords.split())
+        rgKeywords = map(lambda x: x.lower(), keywords.split())
         query = string.join(rgKeywords, sep=' OR ')
         alert.put()
 
         subscribe(Deal, query, str(alert.key()))
         self.redirect('/edit_alerts')
 
+
 class MatchResponseHandler(webapp.RequestHandler):
-   """MatchResponseHandler receives match results from TaskQueue."""
-   def post(self):
+    """MatchResponseHandler receives match results from TaskQueue."""
+
+    def post(self):
         # document from match request, either a python dict or db.Model
         # if result_return_document = true in Match call
         #doc = prospective_search.get_document(self.request)
@@ -68,25 +71,39 @@ class MatchResponseHandler(webapp.RequestHandler):
         results_offset = self.request.get_all('results_offset')
         # List of subscription ids that matched for match.
         sub_ids = self.request.get_all('id')
-        for sub_id in sub_ids:
+        alerts = db.get(sub_ids)
+        for alert in alerts:
+            if alert is None:
+                continue
+
             hist = History()
             hist.deal = deal
-            hist.alert = db.get(sub_id)
+            hist.alert = alert
             hist.put()
             if not hist.emailed:
                 hist.send_email()
 
+
 class Check(webapp.RequestHandler):
     """ Fetches Rss feed and submits a new Match query"""
+
     def get(self):
         deal = Deal.parse()
         last_deal = Deal.all().order("-published").get()
-        #last_deal = None ### for testing
+        ### last_deal = None ### for testing
 
         # Only add this deal and call match if it's new!
-        if last_deal == None or last_deal.title == deal.title:
+        if last_deal is None or last_deal.title != deal.title or self.request.GET.has_key('force'):
             deal.put()
             match(deal, result_key=str(deal.key()))
             print ("new deal.  match submitted")
+            print (deal.alltext)
         else:
             print ("existing deal")
+
+
+class ClearAllSubs(webapp.RequestHandler):
+    """ Clear all subs b/c I'm getting orphans for some reason """
+
+    def get(self):
+        pass
