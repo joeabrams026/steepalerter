@@ -45,7 +45,17 @@ class EditAlerts(webapp.RequestHandler):
         query = string.join(rgKeywords, sep=' OR ')
         alert.put()
 
-        subscribe(Deal, query, str(alert.key()))
+        subid = str(alert.key())
+
+        if not query:
+            try:
+                unsubscribe(Deal, subid)
+            except:
+                pass #Most likely the sub doesn't exist
+
+        else:
+            subscribe(Deal, query, subid)
+
         self.redirect('/edit_alerts')
 
 
@@ -88,7 +98,7 @@ class Check(webapp.RequestHandler):
     """ Fetches Rss feed and submits a new Match query"""
 
     def get(self):
-        deal = Deal.parse()
+        deal = Deal.get_latest_deal()
         last_deal = Deal.all().order("-published").get()
         ### last_deal = None ### for testing
 
@@ -100,10 +110,3 @@ class Check(webapp.RequestHandler):
             print (deal.alltext)
         else:
             print ("existing deal")
-
-
-class ClearAllSubs(webapp.RequestHandler):
-    """ Clear all subs b/c I'm getting orphans for some reason """
-
-    def get(self):
-        pass
